@@ -43,33 +43,10 @@ jobs:
           no_output_timeout: 1800
 
       - run:
-          name: Prepare artifacts
+          name: Collect artifacts
           command: |
             mkdir -p output
-            mv alpineos*.zip* output/
-
-      - run:
-          name: Deploy
-          command: |
-            if [ -n "${CIRCLE_TAG}" ]; then
-              go install github.com/tcnksm/ghr@latest
-              MAJOR="${CIRCLE_TAG%%.*}"
-              MINOR="${CIRCLE_TAG%.*}"
-              PRE=""
-              if [[ ${CIRCLE_TAG} = *"rc"* ]]; then
-                PRE="-prerelease"
-              fi
-              # Publish versioned release
-              ghr ${PRE} -replace -u "${GITHUB_USER}" "${CIRCLE_TAG}" output/
-              # Update floating tags (major.minor, major, latest, stable)
-              # skip for pre-releases
-              if [ -z "${PRE}" ]; then
-                ghr -replace -u "${GITHUB_USER}" "${MINOR}" output/
-                ghr -replace -u "${GITHUB_USER}" "${MAJOR}" output/
-                ghr -replace -u "${GITHUB_USER}" latest output/
-                ghr -replace -u "${GITHUB_USER}" stable output/
-              fi
-            fi
+            mv alpineos*.zip* output/ 2>/dev/null || true
 
       - store_artifacts:
           path: /home/circleci/project/output

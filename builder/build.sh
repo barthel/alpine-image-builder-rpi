@@ -20,27 +20,24 @@ BUILD_RESULT_PATH="/workspace"
 WORK_PATH="/work"
 BUILD_PATH="/build"
 
-VERSION=${VERSION:-${CIRCLE_TAG:-dirty}}
+VERSION=${VERSION:-${CIRCLE_TAG:-latest}}
 IMAGE_NAME="alpineos-rpi-${VERSION}.img"
 export VERSION
 
-ROOTFS_TAR="rootfs-armhf-${ALPINE_OS_VERSION}.tar.gz"
+# Rootfs tarball is pre-fetched from Docker Hub (uwebarthel/alpine-os-rootfs:<version>)
+# by build.sh before this container is started; it is always named rootfs-armhf.tar.gz.
+ROOTFS_TAR="rootfs-armhf.tar.gz"
 ROOTFS_TAR_PATH="${BUILD_RESULT_PATH}/${ROOTFS_TAR}"
 
 echo "CIRCLE_TAG=${CIRCLE_TAG:-}"
 echo "Building image: ${IMAGE_NAME}"
 
-### Download rootfs tarball if not present locally
+### Verify rootfs tarball is present
 
 if [ ! -f "${ROOTFS_TAR_PATH}" ]; then
-  echo "Downloading rootfs tarball ${ALPINE_OS_VERSION}..."
-  wget -q -O "${ROOTFS_TAR_PATH}" \
-    "https://github.com/barthel/alpine-os-rootfs/releases/download/${ALPINE_OS_VERSION}/${ROOTFS_TAR}"
-fi
-
-# Verify checksum if configured
-if [ -n "${ROOTFS_TAR_CHECKSUM}" ]; then
-  echo "${ROOTFS_TAR_CHECKSUM} ${ROOTFS_TAR_PATH}" | sha256sum -c -
+  echo "ERROR: rootfs tarball not found at ${ROOTFS_TAR_PATH}" >&2
+  echo "       Run build.sh to pull it from Docker Hub first." >&2
+  exit 1
 fi
 
 ### Create blank disk image (container-local — virtiofs does not support losetup)

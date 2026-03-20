@@ -32,6 +32,11 @@ jobs:
               bash -c 'shellcheck /builder/build.sh /builder/chroot-script.sh'
 
       - run:
+          name: Set up QEMU binfmt handlers
+          command: |
+            docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+
+      - run:
           name: Create SD image
           command: |
             VERSION="${CIRCLE_TAG}" ./build.sh

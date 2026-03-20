@@ -40,6 +40,7 @@ fi
 echo "Building SD image (ALPINE_OS_VERSION=${ALPINE_OS_VERSION})..."
 docker run --rm --privileged \
   -e ALPINE_OS_VERSION="${ALPINE_OS_VERSION}" \
+  -e VERSION="${VERSION}" \
   -v "$(pwd):/workspace" \
   "${IMAGE_NAME}"
 

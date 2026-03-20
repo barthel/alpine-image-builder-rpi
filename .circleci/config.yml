@@ -32,7 +32,14 @@ jobs:
       - run:
           name: Create SD image
           command: |
-            VERSION=${CIRCLE_TAG} make sd-image
+            if [ -n "${CIRCLE_TAG}" ]; then
+              export BASE_TAG="${CIRCLE_TAG%.*}"
+              export ALPINE_OS_VERSION="${CIRCLE_TAG%.*}"
+            else
+              export BASE_TAG="latest"
+              export ALPINE_OS_VERSION="latest"
+            fi
+            VERSION="${CIRCLE_TAG:-latest}" BASE_TAG="${BASE_TAG}" make sd-image
           no_output_timeout: 1800
 
       - run:
@@ -44,12 +51,13 @@ jobs:
       - run:
           name: Deploy
           command: |
-            if [ "$CIRCLE_TAG" != "" ]; then
+            if [ -n "${CIRCLE_TAG}" ]; then
               go install github.com/tcnksm/ghr@latest
+              PRE=""
               if [[ $CIRCLE_TAG = *"rc"* ]]; then
-                pre=-prerelease
+                PRE="-prerelease"
               fi
-              ghr $pre -u $GITHUB_USER $CIRCLE_TAG output/
+              ~/go/bin/ghr ${PRE} -u "${GITHUB_USER}" "${CIRCLE_TAG}" output/
             fi
 
       - store_artifacts:

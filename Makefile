@@ -1,13 +1,16 @@
+BASE_TAG ?= latest
+
 default: build
 
 build:
-	docker build -t alpine-image-builder-rpi .
+	docker build --build-arg BASE_TAG=$(BASE_TAG) -t alpine-image-builder-rpi .
 
 sd-image: build
 	docker run --rm --privileged \
 	  -v $(shell pwd):/workspace \
 	  -e CIRCLE_TAG \
 	  -e VERSION \
+	  -e ALPINE_OS_VERSION \
 	  alpine-image-builder-rpi
 
 shell: build
@@ -15,12 +18,13 @@ shell: build
 	  -v $(shell pwd):/workspace \
 	  -e CIRCLE_TAG \
 	  -e VERSION \
+	  -e ALPINE_OS_VERSION \
 	  alpine-image-builder-rpi bash
 
 test: build
-	VERSION=dirty docker run --rm --privileged \
+	VERSION=latest docker run --rm --privileged \
 	  -v $(shell pwd):/workspace \
-	  -e VERSION=dirty \
+	  -e VERSION=latest \
 	  alpine-image-builder-rpi bash -c "rspec --format documentation --color /builder/test"
 
 shellcheck: build

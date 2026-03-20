@@ -1,0 +1,56 @@
+version: 2.1
+
+workflows:
+  version: 2.1
+  build_and_deploy:
+    jobs:
+      - build:
+          filters:
+            tags:
+              only: /.*/
+          context:
+            - "github"
+            - "Docker Hub"
+
+jobs:
+  build:
+    machine:
+      image: ubuntu-2404:current
+    steps:
+      - checkout
+
+      - run:
+          name: Run Docker login
+          command: |
+            echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+
+      - run:
+          name: Run Shellcheck
+          command: |
+            make shellcheck
+
+      - run:
+          name: Create SD image
+          command: |
+            VERSION=${CIRCLE_TAG} make sd-image
+          no_output_timeout: 1800
+
+      - run:
+          name: Prepare artifacts
+          command: |
+            mkdir -p output
+            mv alpineos*.zip* output/
+
+      - run:
+          name: Deploy
+          command: |
+            if [ "$CIRCLE_TAG" != "" ]; then
+              go install github.com/tcnksm/ghr@latest
+              if [[ $CIRCLE_TAG = *"rc"* ]]; then
+                pre=-prerelease
+              fi
+              ghr $pre -u $GITHUB_USER $CIRCLE_TAG output/
+            fi
+
+      - store_artifacts:
+          path: /home/circleci/project/output

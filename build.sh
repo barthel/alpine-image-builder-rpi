@@ -17,8 +17,8 @@ if [ -n "${VERSION}" ]; then
   BASE_TAG="${VERSION%.*}"       # major.minor, e.g. 3.21 from 3.21.0
   ALPINE_OS_VERSION="${VERSION}"
 else
-  BASE_TAG="latest"
-  ALPINE_OS_VERSION="latest"
+  BASE_TAG="stable"
+  ALPINE_OS_VERSION="stable"
 fi
 
 echo "Building ${IMAGE_NAME} (base: ${DOCKER_USER}/alpine-image-builder:${BASE_TAG})..."

@@ -4,9 +4,11 @@ set -ex
 
 ### Package repositories
 
+ALPINE_MINOR="$(echo "${ALPINE_VERSION}" | cut -d. -f1,2)"
+
 cat > /etc/apk/repositories << EOF
-https://dl-cdn.alpinelinux.org/alpine/v${ALPINE_VERSION}/main
-https://dl-cdn.alpinelinux.org/alpine/v${ALPINE_VERSION}/community
+https://dl-cdn.alpinelinux.org/alpine/v${ALPINE_MINOR}/main
+https://dl-cdn.alpinelinux.org/alpine/v${ALPINE_MINOR}/community
 EOF
 
 apk update

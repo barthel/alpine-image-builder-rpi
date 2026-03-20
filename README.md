@@ -37,17 +37,22 @@ make sd-image
 Output: `alpineos-rpi-dirty.img.zip` + `.sha256` in the project root.
 Tests run automatically at the end of each build.
 
+### Versioning
+
+Versions follow the Alpine version: `MAJOR.MINOR.BUILD`.
+`BUILD` starts at 0 and increments with each change while on the same Alpine minor.
+
 ### Versioned build
 
 ```bash
-VERSION=0.1.0 make sd-image
+VERSION=3.21.0 make sd-image
 ```
 
 ### Using a released rootfs
 
 Set `ALPINE_OS_VERSION` in `versions.config` to the
 [alpine-os-rootfs](https://github.com/barthel/alpine-os-rootfs/releases) tag
-and optionally set `ROOTFS_TAR_CHECKSUM` for checksum verification.
+(e.g. `3.21.0`) and optionally set `ROOTFS_TAR_CHECKSUM` for checksum verification.
 
 If no local tarball is found, the build script downloads it automatically
 from the GitHub Release matching `ALPINE_OS_VERSION`.
@@ -58,7 +63,7 @@ from the GitHub Release matching `ALPINE_OS_VERSION`.
 make shellcheck   # Run shellcheck against builder/build.sh and chroot-script.sh
 make test         # Run serverspec tests against a previously built image zip
 make shell        # Open a shell inside the builder container
-make tag TAG=0.1.0  # Create and push a git tag
+make tag TAG=3.21.0  # Create and push a git tag
 ```
 
 ## First boot

@@ -4,17 +4,18 @@
 # Usage:
 #   ./build.sh                          # local build, BASE_TAG=latest, ALPINE_OS_VERSION=stable
 #   VERSION=3.21.0 ./build.sh           # versioned build: BASE_TAG=3.21, ALPINE_OS_VERSION=3.21.0
-#   VERSION=3.21.0 PUSH=true ./build.sh # versioned build + push builder image to Docker Hub
+#   VERSION=3.21.0 PUSH=true ./build.sh # versioned build + push to Docker Hub
 #
 # Environment:
 #   DOCKER_USER   Docker Hub username (default: uwebarthel)
 #   VERSION       Release version tag, e.g. 3.21.0 (default: empty = latest)
-#   PUSH          Set to "true" to push the builder image to Docker Hub
+#   PUSH          Set to "true" to push builder + SD image distribution to Docker Hub
 set -e
 
 DOCKER_USER="${DOCKER_USER:-uwebarthel}"
 IMAGE_NAME="alpine-image-builder-rpi"
 DIST_IMAGE="${DOCKER_USER}/${IMAGE_NAME}"
+IMG_DIST_IMAGE="${DOCKER_USER}/alpineos-rpi"
 
 if [ -n "${VERSION}" ]; then
   BASE_TAG="${VERSION%.*}"       # major.minor, e.g. 3.21 from 3.21.0
@@ -44,19 +45,34 @@ docker run --rm --privileged \
 
 if [ "${PUSH:-false}" = "true" ]; then
   IMG_VERSION="${VERSION:-latest}"
+  MAJOR="${VERSION%%.*}"
+  MINOR="${VERSION%.*}"
+  PRE=""
+  if [[ "${VERSION:-}" = *"rc"* ]]; then PRE="true"; fi
+
+  # Push builder image
   docker tag "${IMAGE_NAME}" "${DIST_IMAGE}:${IMG_VERSION}"
   docker push "${DIST_IMAGE}:${IMG_VERSION}"
 
-  if [ -n "${VERSION}" ]; then
-    MAJOR="${VERSION%%.*}"
-    MINOR="${VERSION%.*}"
-    PRE=""
-    if [[ "${VERSION}" = *"rc"* ]]; then PRE="true"; fi
-    if [ -z "${PRE}" ]; then
-      for extra_tag in "${MINOR}" "${MAJOR}" latest stable; do
-        docker tag "${IMAGE_NAME}" "${DIST_IMAGE}:${extra_tag}"
-        docker push "${DIST_IMAGE}:${extra_tag}"
-      done
-    fi
+  # Push SD image distribution (FROM scratch with .img.zip for docker cp extraction)
+  ZIP_NAME="alpineos-rpi-${IMG_VERSION}.img.zip"
+  mkdir -p .img-ctx
+  cp "${ZIP_NAME}" ".img-ctx/alpineos-rpi.img.zip"
+  cat > .img-ctx/Dockerfile << 'EOF'
+FROM scratch
+COPY alpineos-rpi.img.zip /image/
+CMD ["/noop"]
+EOF
+  docker build --tag "${IMG_DIST_IMAGE}:${IMG_VERSION}" .img-ctx/
+  docker push "${IMG_DIST_IMAGE}:${IMG_VERSION}"
+  rm -rf .img-ctx
+
+  if [ -n "${VERSION}" ] && [ -z "${PRE}" ]; then
+    for extra_tag in "${MINOR}" "${MAJOR}" latest stable; do
+      docker tag "${IMAGE_NAME}" "${DIST_IMAGE}:${extra_tag}"
+      docker push "${DIST_IMAGE}:${extra_tag}"
+      docker tag "${IMG_DIST_IMAGE}:${IMG_VERSION}" "${IMG_DIST_IMAGE}:${extra_tag}"
+      docker push "${IMG_DIST_IMAGE}:${extra_tag}"
+    done
   fi
 fi

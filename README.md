@@ -35,6 +35,7 @@ make sd-image
 ```
 
 Output: `alpineos-rpi-dirty.img.zip` + `.sha256` in the project root.
+Tests run automatically at the end of each build.
 
 ### Versioned build
 
@@ -48,7 +49,41 @@ Set `ALPINE_OS_VERSION` in `versions.config` to the
 [alpine-os-rootfs](https://github.com/barthel/alpine-os-rootfs/releases) tag
 and optionally set `ROOTFS_TAR_CHECKSUM` for checksum verification.
 
+If no local tarball is found, the build script downloads it automatically
+from the GitHub Release matching `ALPINE_OS_VERSION`.
+
+## Other targets
+
+```bash
+make shellcheck   # Run shellcheck against builder/build.sh and chroot-script.sh
+make test         # Run serverspec tests against a previously built image zip
+make shell        # Open a shell inside the builder container
+make tag TAG=0.1.0  # Create and push a git tag
+```
+
 ## First boot
+
+### Default credentials
+
+| Setting | Value |
+|---|---|
+| Default hostname | `black-pearl` |
+| Default user | `admin` |
+| Password | *none set* — SSH key required, or add `plain_text_passwd:` to user-data |
+| SSH password auth | enabled (`ssh_pwauth: true`) |
+| sudo | passwordless |
+
+Add your SSH public key to `builder/files/boot/user-data` before building:
+
+```yaml
+users:
+  - name: admin
+    # ...
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAA...
+```
+
+Or edit `/boot/user-data` on the SD card after flashing.
 
 ### eth0 (wired)
 DHCP is configured automatically. The image boots without any configuration.
@@ -68,6 +103,14 @@ Seed files on the FAT32 boot partition are linked to the NoCloud datasource:
 | `/boot/network-config` | network configuration |
 
 Edit these files on the SD card to customise the first boot.
+
+## CI / Release
+
+CircleCI builds and tests the image on every push and every tag.
+On a tag push, the image zip is published as a GitHub Release.
+
+The pipeline uses contexts `github` (for `GITHUB_USER`) and `Docker Hub`
+(for `DOCKER_USER` / `DOCKER_PASS`).
 
 ## Repository structure
 

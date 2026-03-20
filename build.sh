@@ -17,7 +17,7 @@ if [ -n "${VERSION}" ]; then
   BASE_TAG="${VERSION%.*}"       # major.minor, e.g. 3.21 from 3.21.0
   ALPINE_OS_VERSION="${VERSION}"
 else
-  BASE_TAG="stable"
+  BASE_TAG="latest"
   ALPINE_OS_VERSION="stable"
 fi
 

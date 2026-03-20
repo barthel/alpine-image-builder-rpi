@@ -83,9 +83,10 @@ mkdir -p "${BUILD_PATH}/boot"
 
 ### Prepare chroot
 
-# Register QEMU for armhf cross-execution
-update-binfmts --enable qemu-arm || true
-cp /usr/bin/qemu-arm-static "${BUILD_PATH}/usr/bin/"
+# Register QEMU for armhf cross-execution.
+# F flag (fix binary): kernel holds qemu-arm open; binary need not exist in chroot.
+echo ':qemu-arm:M::\x7fELF\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x28\x00:\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:/usr/bin/qemu-arm:F' \
+  > /proc/sys/fs/binfmt_misc/register 2>/dev/null || true
 
 # Ensure DNS resolves inside chroot
 cp /etc/resolv.conf "${BUILD_PATH}/etc/resolv.conf"
@@ -116,8 +117,7 @@ umount -lqn "${BUILD_PATH}/dev"     || true
 umount -lqn "${BUILD_PATH}/proc"    || true
 umount -lqn "${BUILD_PATH}/sys"     || true
 
-# Remove QEMU binary — host tool, not for target
-rm -f "${BUILD_PATH}/usr/bin/qemu-arm-static"
+# Nothing to remove: the F-flag binfmt approach does not copy any binary into the rootfs.
 
 ### Populate FAT32 boot partition
 

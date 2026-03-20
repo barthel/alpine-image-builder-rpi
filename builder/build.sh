@@ -12,7 +12,12 @@ source /workspace/versions.config
 
 ### Variables
 
+# /workspace is a bind-mount from the host (virtiofs on macOS/Podman).
+# Loop-device ioctls do NOT work on virtiofs-backed files, so all image
+# operations happen in /work (container-local tmpfs).  Only the rootfs
+# tarball is read from /workspace; the final zip is written back there.
 BUILD_RESULT_PATH="/workspace"
+WORK_PATH="/work"
 BUILD_PATH="/build"
 
 VERSION=${VERSION:-${CIRCLE_TAG:-dirty}}
@@ -38,11 +43,12 @@ if [ -n "${ROOTFS_TAR_CHECKSUM}" ]; then
   echo "${ROOTFS_TAR_CHECKSUM} ${ROOTFS_TAR_PATH}" | sha256sum -c -
 fi
 
-### Create blank disk image
+### Create blank disk image (container-local — virtiofs does not support losetup)
 
-IMAGE_PATH="${BUILD_RESULT_PATH}/${IMAGE_NAME}"
+mkdir -p "${WORK_PATH}"
+IMAGE_PATH="${WORK_PATH}/${IMAGE_NAME}"
 rm -f "${IMAGE_PATH}"
-# Use fallocate for a fast sparse image (1 GiB: 256 MiB boot + ~768 MiB root)
+# Sparse 1 GiB image: 256 MiB boot + ~768 MiB root
 fallocate -l 1G "${IMAGE_PATH}"
 
 # Partition: MBR, boot=FAT32 (256 MiB), root=ext4 (rest)
@@ -146,14 +152,17 @@ umount "${BUILD_PATH}"
 kpartx -d "${LOOP_DEV}"
 losetup -d "${LOOP_DEV}"
 
-### Compress and checksum
+### Compress and checksum (still in /work — then copy to /workspace)
 
 umask 0000
-cd "${BUILD_RESULT_PATH}"
+cd "${WORK_PATH}"
 zip "${IMAGE_NAME}.zip" "${IMAGE_NAME}"
 sha256sum "${IMAGE_NAME}.zip" > "${IMAGE_NAME}.zip.sha256"
 rm "${IMAGE_NAME}"
+cp "${IMAGE_NAME}.zip"        "${BUILD_RESULT_PATH}/"
+cp "${IMAGE_NAME}.zip.sha256" "${BUILD_RESULT_PATH}/"
 
-### Run tests
+### Run tests (from /workspace where the zip was copied)
 
+cd "${BUILD_RESULT_PATH}"
 VERSION="${VERSION}" rspec --format documentation --color /builder/test

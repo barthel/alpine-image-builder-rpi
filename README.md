@@ -1,7 +1,8 @@
 # alpine-image-builder-rpi
 
-Builds a bootable SD card image with AlpineOS for the Raspberry Pi Zero W
-(armhf / ARMv6). Based on the rootfs from
+Builds a bootable SD card image with AlpineOS for Raspberry Pi boards
+(armhf / ARMv6+). Tested on Pi Zero W (ARMv6) and Pi 3B (ARMv7).
+Based on the rootfs from
 [alpine-os-rootfs](https://github.com/barthel/alpine-os-rootfs).
 
 ## What the image contains
@@ -10,7 +11,7 @@ Builds a bootable SD card image with AlpineOS for the Raspberry Pi Zero W
 - Raspberry Pi kernel (`linux-rpi`) and firmware (`raspberrypi-bootloader`)
 - Docker CE with OpenRC service enabled
 - cloud-init (NoCloud datasource, seeded from `/boot`)
-- WiFi support: `wpa_supplicant`, `wireless-tools`
+- WiFi support: `wpa_supplicant`, `wpa_supplicant-openrc`, `wireless-tools`, `wireless-regdb`
 - OpenRC init system
 
 ## Disk layout
@@ -18,7 +19,7 @@ Builds a bootable SD card image with AlpineOS for the Raspberry Pi Zero W
 | Partition | Filesystem | Size | Contents |
 |---|---|---|---|
 | `/dev/mmcblk0p1` | FAT32 | 256 MiB | Firmware, kernel, dtbs, cloud-init seed, config.txt |
-| `/dev/mmcblk0p2` | ext4 | ~768 MiB | Alpine rootfs |
+| `/dev/mmcblk0p2` | ext4 | ~768 MiB → full SD card | Alpine rootfs (resized to full SD card on first boot) |
 
 ## Prerequisites
 

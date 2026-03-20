@@ -7,15 +7,15 @@
 hostname: black-pearl
 manage_etc_hosts: true
 
+ssh_pwauth: true
+
 users:
   - name: admin
     gecos: "Instance Administrator"
     sudo: ALL=(ALL) NOPASSWD:ALL
     shell: /bin/bash
-    groups: [sudo, docker, video]
+    groups: [wheel, docker, video]
     lock_passwd: false
-    ssh_pwauth: true
-    chpasswd: { expire: false }
     # Add your SSH public key here:
     # ssh_authorized_keys:
     #   - ssh-ed25519 AAAA...
@@ -24,11 +24,6 @@ package_upgrade: false
 
 # WiFi — uncomment and fill in to connect on first boot:
 # write_files:
-#   - path: /etc/network/interfaces.d/wlan0
-#     content: |
-#       allow-hotplug wlan0
-#       iface wlan0 inet dhcp
-#       wpa-conf /etc/wpa_supplicant/wpa_supplicant.conf
 #   - path: /etc/wpa_supplicant/wpa_supplicant.conf
 #     permissions: '0600'
 #     content: |

@@ -81,6 +81,10 @@ mount "${ROOT_PART}" "${BUILD_PATH}"
 tar xf "${ROOTFS_TAR_PATH}" -C "${BUILD_PATH}"
 mkdir -p "${BUILD_PATH}/boot"
 
+# Mount the FAT32 boot partition NOW so that apk (linux-rpi, raspberrypi-bootloader)
+# writes kernel, firmware, config.txt and cmdline.txt directly into the FAT partition.
+mount "${BOOT_PART}" "${BUILD_PATH}/boot"
+
 ### Prepare chroot
 
 # Register QEMU for armhf cross-execution.
@@ -119,18 +123,22 @@ umount -lqn "${BUILD_PATH}/sys"     || true
 
 # Nothing to remove: the F-flag binfmt approach does not copy any binary into the rootfs.
 
-### Populate FAT32 boot partition
+### Ensure critical runlevel symlinks
+# rc-update inside the chroot detects Docker (via /proc cgroup namespace) and
+# silently skips services with `keyword -docker`.  Create the symlinks directly
+# from the build host after the chroot exits so they always end up in the image.
+#
+# sysinit: sysfs + cgroups must start before the default runlevel so Docker's
+#          depend(need sysfs cgroups) is satisfied without a race condition.
+# boot:    modules reads /etc/modules early so brcmfmac (WiFi) loads on boot.
+mkdir -p "${BUILD_PATH}/etc/runlevels/sysinit" "${BUILD_PATH}/etc/runlevels/boot"
+ln -sf /etc/init.d/sysfs   "${BUILD_PATH}/etc/runlevels/sysinit/sysfs"
+ln -sf /etc/init.d/cgroups "${BUILD_PATH}/etc/runlevels/sysinit/cgroups"
+ln -sf /etc/init.d/modules "${BUILD_PATH}/etc/runlevels/boot/modules"
 
-mount "${BOOT_PART}" "${BUILD_PATH}/boot"
-
-# Raspberry Pi firmware (from raspberrypi-bootloader package)
-RPi_FW_DIR="${BUILD_PATH}/usr/share/raspberrypi/boot"
-if [ -d "${RPi_FW_DIR}" ]; then
-  cp "${RPi_FW_DIR}"/*.elf "${BUILD_PATH}/boot/" 2>/dev/null || true
-  cp "${RPi_FW_DIR}"/*.dat "${BUILD_PATH}/boot/" 2>/dev/null || true
-  cp "${RPi_FW_DIR}"/*.img "${BUILD_PATH}/boot/" 2>/dev/null || true
-  cp "${RPi_FW_DIR}/bootcode.bin" "${BUILD_PATH}/boot/" 2>/dev/null || true
-fi
+### Populate FAT32 boot partition (cloud-init seed files)
+# Kernel, firmware, config.txt and cmdline.txt were already written to the FAT
+# partition during the chroot (linux-rpi and raspberrypi-bootloader apk triggers).
 
 # Copy cloud-init seed files
 cp /builder/files/boot/user-data      "${BUILD_PATH}/boot/"
@@ -139,7 +147,7 @@ cp /builder/files/boot/network-config "${BUILD_PATH}/boot/"
 
 umount "${BUILD_PATH}/boot"
 
-### Write fstab (needs PARTUUID, done after chroot)
+### Write fstab (needs PARTUUID; done after FAT unmount)
 
 cat >> "${BUILD_PATH}/etc/fstab" << EOF
 PARTUUID=${PARTUUID_PREFIX}-01 /boot vfat defaults 0 0

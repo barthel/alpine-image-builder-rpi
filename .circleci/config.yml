@@ -9,7 +9,6 @@ workflows:
             tags:
               only: /.*/
           context:
-            - "github"
             - "Docker Hub"
 
 jobs:
@@ -37,9 +36,9 @@ jobs:
             docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
 
       - run:
-          name: Create SD image
+          name: Create SD image and push builder to Docker Hub
           command: |
-            VERSION="${CIRCLE_TAG}" ./build.sh
+            VERSION="${CIRCLE_TAG}" PUSH=true ./build.sh
           no_output_timeout: 1800
 
       - run:

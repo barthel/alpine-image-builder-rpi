@@ -27,19 +27,14 @@ jobs:
       - run:
           name: Run Shellcheck
           command: |
-            make shellcheck
+            docker build --build-arg BASE_TAG=latest -t alpine-image-builder-rpi .
+            docker run --rm alpine-image-builder-rpi \
+              bash -c 'shellcheck /builder/build.sh /builder/chroot-script.sh'
 
       - run:
           name: Create SD image
           command: |
-            if [ -n "${CIRCLE_TAG}" ]; then
-              export BASE_TAG="${CIRCLE_TAG%.*}"
-              export ALPINE_OS_VERSION="${CIRCLE_TAG%.*}"
-            else
-              export BASE_TAG="latest"
-              export ALPINE_OS_VERSION="latest"
-            fi
-            VERSION="${CIRCLE_TAG:-latest}" BASE_TAG="${BASE_TAG}" make sd-image
+            VERSION="${CIRCLE_TAG}" ./build.sh
           no_output_timeout: 1800
 
       - run:
@@ -53,11 +48,22 @@ jobs:
           command: |
             if [ -n "${CIRCLE_TAG}" ]; then
               go install github.com/tcnksm/ghr@latest
+              MAJOR="${CIRCLE_TAG%%.*}"
+              MINOR="${CIRCLE_TAG%.*}"
               PRE=""
-              if [[ $CIRCLE_TAG = *"rc"* ]]; then
+              if [[ ${CIRCLE_TAG} = *"rc"* ]]; then
                 PRE="-prerelease"
               fi
-              ~/go/bin/ghr ${PRE} -u "${GITHUB_USER}" "${CIRCLE_TAG}" output/
+              # Publish versioned release
+              ghr ${PRE} -replace -u "${GITHUB_USER}" "${CIRCLE_TAG}" output/
+              # Update floating tags (major.minor, major, latest, stable)
+              # skip for pre-releases
+              if [ -z "${PRE}" ]; then
+                ghr -replace -u "${GITHUB_USER}" "${MINOR}" output/
+                ghr -replace -u "${GITHUB_USER}" "${MAJOR}" output/
+                ghr -replace -u "${GITHUB_USER}" latest output/
+                ghr -replace -u "${GITHUB_USER}" stable output/
+              fi
             fi
 
       - store_artifacts:

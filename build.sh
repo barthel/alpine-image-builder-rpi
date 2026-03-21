@@ -60,9 +60,12 @@ if [ "${PUSH:-false}" = "true" ]; then
   PRE=""
   if [[ "${VERSION:-}" = *"rc"* ]]; then PRE="true"; fi
 
-  # Push builder image
-  docker tag "${IMAGE_NAME}" "${DIST_IMAGE}:${IMG_VERSION}"
-  docker push "${DIST_IMAGE}:${IMG_VERSION}"
+  # Push builder image (multi-arch: amd64 + arm64 for Apple Silicon / arm64 CI runners)
+  docker buildx build \
+    --platform linux/amd64,linux/arm64 \
+    --build-arg BASE_TAG="${BASE_TAG}" \
+    --tag "${DIST_IMAGE}:${IMG_VERSION}" \
+    --push .
 
   # Push SD image distributions (FROM scratch with .img.zip for docker cp extraction)
   # Platform annotation reflects the target architecture, not the build machine.
@@ -88,8 +91,9 @@ EOF
 
   if [ -n "${VERSION}" ] && [ -z "${PRE}" ]; then
     for extra_tag in "${MINOR}" "${MAJOR}" latest stable; do
-      docker tag "${IMAGE_NAME}" "${DIST_IMAGE}:${extra_tag}"
-      docker push "${DIST_IMAGE}:${extra_tag}"
+      # Builder image: re-tag via imagetools (preserves multi-arch manifest)
+      docker buildx imagetools create -t "${DIST_IMAGE}:${extra_tag}" "${DIST_IMAGE}:${IMG_VERSION}"
+      # Distribution images: single-arch, docker tag is fine
       docker tag "${IMG_DIST_IMAGE}:${IMG_VERSION}" "${IMG_DIST_IMAGE}:${extra_tag}"
       docker push "${IMG_DIST_IMAGE}:${extra_tag}"
       docker tag "${ARM64_DIST_IMAGE}:${IMG_VERSION}" "${ARM64_DIST_IMAGE}:${extra_tag}"

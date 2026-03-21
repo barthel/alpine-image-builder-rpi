@@ -17,10 +17,19 @@ apk update
 ### Raspberry Pi kernel, firmware, and arch-specific packages
 
 if [ "${ALPINE_ARCH}" = "aarch64" ]; then
-  # Pi 3B (arm64): linux-rpi4 supports BCM2837; wired-only host, no WiFi needed
+  # Pi 3B (arm64): linux-rpi4 supports BCM2837; BCM43438 WiFi via brcmfmac (same as Pi Zero W)
   apk add --no-cache \
     linux-rpi4 \
-    raspberrypi-bootloader
+    raspberrypi-bootloader \
+    wpa_supplicant \
+    wpa_supplicant-openrc \
+    wireless-tools \
+    wireless-regdb
+
+  rc-update add wpa_supplicant default 2>/dev/null || true
+
+  # Load brcmfmac at boot for BCM43438 WiFi (Pi 3B SDIO chip).
+  echo "brcmfmac" >> /etc/modules
 
   cat > /boot/config.txt << EOF
 # AlpineOS RPi boot configuration (arm64 / Pi 3B)

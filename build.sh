@@ -28,19 +28,28 @@ fi
 echo "Building ${IMAGE_NAME} (base: ${DOCKER_USER}/alpine-image-builder:${BASE_TAG})..."
 docker build --build-arg BASE_TAG="${BASE_TAG}" -t "${IMAGE_NAME}" .
 
-# Pull rootfs tarball from Docker Hub (uwebarthel/alpine-os-rootfs:<version>)
-# The image contains /rootfs/rootfs-armhf.tar.gz (and aarch64, x86_64).
-if [ ! -f "rootfs-armhf.tar.gz" ]; then
+# Pull rootfs tarballs from Docker Hub (uwebarthel/alpine-os-rootfs:<version>)
+if [ ! -f "rootfs-armhf.tar.gz" ] || [ ! -f "rootfs-aarch64.tar.gz" ]; then
   echo "Pulling rootfs from ${DOCKER_USER}/alpine-os-rootfs:${ALPINE_OS_VERSION}..."
   cid=$(docker create "${DOCKER_USER}/alpine-os-rootfs:${ALPINE_OS_VERSION}")
   docker cp "${cid}:/rootfs/rootfs-armhf.tar.gz" .
+  docker cp "${cid}:/rootfs/rootfs-aarch64.tar.gz" .
   docker rm "${cid}"
 fi
 
-echo "Building SD image (ALPINE_OS_VERSION=${ALPINE_OS_VERSION})..."
+echo "Building SD image armhf (ALPINE_OS_VERSION=${ALPINE_OS_VERSION})..."
 docker run --rm --privileged \
   -e ALPINE_OS_VERSION="${ALPINE_OS_VERSION}" \
   -e VERSION="${VERSION}" \
+  -e ALPINE_ARCH=armhf \
+  -v "$(pwd):/workspace" \
+  "${IMAGE_NAME}"
+
+echo "Building SD image aarch64 (ALPINE_OS_VERSION=${ALPINE_OS_VERSION})..."
+docker run --rm --privileged \
+  -e ALPINE_OS_VERSION="${ALPINE_OS_VERSION}" \
+  -e VERSION="${VERSION}" \
+  -e ALPINE_ARCH=aarch64 \
   -v "$(pwd):/workspace" \
   "${IMAGE_NAME}"
 

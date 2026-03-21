@@ -21,12 +21,19 @@ WORK_PATH="/work"
 BUILD_PATH="/build"
 
 VERSION=${VERSION:-${CIRCLE_TAG:-latest}}
-IMAGE_NAME="alpineos-rpi-${VERSION}.img"
+ALPINE_ARCH="${ALPINE_ARCH:-armhf}"
+
+if [ "${ALPINE_ARCH}" = "aarch64" ]; then
+  IMAGE_NAME="alpineos-rpi-arm64-${VERSION}.img"
+  ROOTFS_TAR="rootfs-aarch64.tar.gz"
+else
+  IMAGE_NAME="alpineos-rpi-${VERSION}.img"
+  ROOTFS_TAR="rootfs-armhf.tar.gz"
+fi
 export VERSION
 
 # Rootfs tarball is pre-fetched from Docker Hub (uwebarthel/alpine-os-rootfs:<version>)
-# by build.sh before this container is started; it is always named rootfs-armhf.tar.gz.
-ROOTFS_TAR="rootfs-armhf.tar.gz"
+# by build.sh before this container is started.
 ROOTFS_TAR_PATH="${BUILD_RESULT_PATH}/${ROOTFS_TAR}"
 
 echo "CIRCLE_TAG=${CIRCLE_TAG:-}"
@@ -84,10 +91,14 @@ mount "${BOOT_PART}" "${BUILD_PATH}/boot"
 
 ### Prepare chroot
 
-# Register QEMU for armhf cross-execution.
-# F flag (fix binary): kernel holds qemu-arm open; binary need not exist in chroot.
-printf '%s\n' ':qemu-arm:M::\x7fELF\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x28\x00:\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:/usr/bin/qemu-arm:F' \
-  > /proc/sys/fs/binfmt_misc/register 2>/dev/null || true
+# Register QEMU for cross-execution (F flag: kernel keeps interpreter open).
+if [ "${ALPINE_ARCH}" = "aarch64" ]; then
+  printf '%s\n' ':qemu-aarch64:M::\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\xb7\x00:\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:/usr/bin/qemu-aarch64:F' \
+    > /proc/sys/fs/binfmt_misc/register 2>/dev/null || true
+else
+  printf '%s\n' ':qemu-arm:M::\x7fELF\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x28\x00:\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:/usr/bin/qemu-arm:F' \
+    > /proc/sys/fs/binfmt_misc/register 2>/dev/null || true
+fi
 
 # Ensure DNS resolves inside chroot
 cp /etc/resolv.conf "${BUILD_PATH}/etc/resolv.conf"
@@ -109,6 +120,7 @@ chroot "${BUILD_PATH}" \
   VERSION="${VERSION}" \
   PARTUUID_PREFIX="${PARTUUID_PREFIX}" \
   ALPINE_VERSION="${ALPINE_VERSION}" \
+  ALPINE_ARCH="${ALPINE_ARCH}" \
   /bin/sh < /builder/chroot-script.sh
 
 ### Unmount pseudo filesystems
@@ -170,4 +182,4 @@ cp "${IMAGE_NAME}.zip.sha256" "${BUILD_RESULT_PATH}/"
 ### Run tests (from /workspace where the zip was copied)
 
 cd "${BUILD_RESULT_PATH}"
-VERSION="${VERSION}" rspec --format documentation --color /builder/test
+VERSION="${VERSION}" ALPINE_ARCH="${ALPINE_ARCH}" rspec --format documentation --color /builder/test

@@ -54,6 +54,8 @@ jobs:
             if [ -n "${CIRCLE_TAG}" ]; then
               cp "output/alpineos-rpi-${CIRCLE_TAG}.img.zip" output/alpineos-rpi.img.zip
               sha256sum output/alpineos-rpi.img.zip > output/alpineos-rpi.img.zip.sha256
+              cp "output/alpineos-rpi-arm64-${CIRCLE_TAG}.img.zip" output/alpineos-rpi-arm64.img.zip
+              sha256sum output/alpineos-rpi-arm64.img.zip > output/alpineos-rpi-arm64.img.zip.sha256
             fi
 
       - run:
@@ -91,6 +93,17 @@ jobs:
                 -H "Content-Type: text/plain" \
                 --data-binary @output/alpineos-rpi.img.zip.sha256 \
                 "${UPLOAD_URL}?name=alpineos-rpi.img.zip.sha256"
+              # Upload arm64 stable zip + sha256
+              curl -sf -X POST \
+                -H "Authorization: token ${GITHUB_TOKEN}" \
+                -H "Content-Type: application/zip" \
+                --data-binary @output/alpineos-rpi-arm64.img.zip \
+                "${UPLOAD_URL}?name=alpineos-rpi-arm64.img.zip"
+              curl -sf -X POST \
+                -H "Authorization: token ${GITHUB_TOKEN}" \
+                -H "Content-Type: text/plain" \
+                --data-binary @output/alpineos-rpi-arm64.img.zip.sha256 \
+                "${UPLOAD_URL}?name=alpineos-rpi-arm64.img.zip.sha256"
             fi
 
       - store_artifacts:

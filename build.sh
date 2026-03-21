@@ -64,17 +64,26 @@ if [ "${PUSH:-false}" = "true" ]; then
   docker tag "${IMAGE_NAME}" "${DIST_IMAGE}:${IMG_VERSION}"
   docker push "${DIST_IMAGE}:${IMG_VERSION}"
 
-  # Push SD image distribution (FROM scratch with .img.zip for docker cp extraction)
-  ZIP_NAME="alpineos-rpi-${IMG_VERSION}.img.zip"
+  # Push SD image distributions (FROM scratch with .img.zip for docker cp extraction)
+  # Platform annotation reflects the target architecture, not the build machine.
   mkdir -p .img-ctx
-  cp "${ZIP_NAME}" ".img-ctx/alpineos-rpi.img.zip"
   cat > .img-ctx/Dockerfile << 'EOF'
 FROM scratch
-COPY alpineos-rpi.img.zip /image/
+COPY image.img.zip /image/
 CMD ["/noop"]
 EOF
-  docker build --tag "${IMG_DIST_IMAGE}:${IMG_VERSION}" .img-ctx/
+
+  # armhf distribution
+  cp "alpineos-rpi-${IMG_VERSION}.img.zip" .img-ctx/image.img.zip
+  docker build --platform linux/arm/v6 --tag "${IMG_DIST_IMAGE}:${IMG_VERSION}" .img-ctx/
   docker push "${IMG_DIST_IMAGE}:${IMG_VERSION}"
+
+  # arm64 distribution
+  ARM64_DIST_IMAGE="${DOCKER_USER}/alpineos-rpi-arm64"
+  cp "alpineos-rpi-arm64-${IMG_VERSION}.img.zip" .img-ctx/image.img.zip
+  docker build --platform linux/arm64 --tag "${ARM64_DIST_IMAGE}:${IMG_VERSION}" .img-ctx/
+  docker push "${ARM64_DIST_IMAGE}:${IMG_VERSION}"
+
   rm -rf .img-ctx
 
   if [ -n "${VERSION}" ] && [ -z "${PRE}" ]; then
@@ -83,6 +92,8 @@ EOF
       docker push "${DIST_IMAGE}:${extra_tag}"
       docker tag "${IMG_DIST_IMAGE}:${IMG_VERSION}" "${IMG_DIST_IMAGE}:${extra_tag}"
       docker push "${IMG_DIST_IMAGE}:${extra_tag}"
+      docker tag "${ARM64_DIST_IMAGE}:${IMG_VERSION}" "${ARM64_DIST_IMAGE}:${extra_tag}"
+      docker push "${ARM64_DIST_IMAGE}:${extra_tag}"
     done
   fi
 fi

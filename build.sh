@@ -17,9 +17,15 @@ IMAGE_NAME="alpine-image-builder-rpi"
 DIST_IMAGE="${DOCKER_USER}/${IMAGE_NAME}"
 IMG_DIST_IMAGE="${DOCKER_USER}/alpineos-rpi"
 
+# ALPINE_VERSION from versions.config defines which rootfs to pull.
+# The builder git tag (VERSION) may differ (e.g. 3.21.1 for arm64 support)
+# but the rootfs is still the same Alpine release (3.21.0).
+# shellcheck disable=SC1091
+source versions.config
+
 if [ -n "${VERSION}" ]; then
-  BASE_TAG="${VERSION%.*}"       # major.minor, e.g. 3.21 from 3.21.0
-  ALPINE_OS_VERSION="${VERSION}"
+  BASE_TAG="${VERSION%.*}"       # major.minor, e.g. 3.21 from 3.21.1
+  ALPINE_OS_VERSION="${ALPINE_VERSION}"  # from versions.config, not from git tag
 else
   BASE_TAG="latest"
   ALPINE_OS_VERSION="stable"
